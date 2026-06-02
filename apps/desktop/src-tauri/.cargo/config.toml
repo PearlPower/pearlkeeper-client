@@ -7,12 +7,14 @@
 # .rodata, not the symbol table); --remap-path-prefix is the actual fix.
 #
 # rustflags don't expand env vars, so paths are listed explicitly. Order matters:
-# the longest prefix must come first so cargo registry paths are caught before
-# the broader $HOME remap fires.
+# when several prefixes match a path, rustc applies the LAST matching one (not the
+# longest). So the broad $HOME fallback must come FIRST and the more-specific maps
+# (.cargo, the project dir) must come AFTER it, otherwise the broad map shadows
+# them and leaks `dev/wallet` / `/home/builder/.cargo` into the binary.
 
 [build]
 rustflags = [
-  "--remap-path-prefix=/home/runner/.cargo=/cargo",
   "--remap-path-prefix=/home/runner/work=/build",
+  "--remap-path-prefix=/home/runner/.cargo=/cargo",
   "--remap-path-prefix=/root/.cargo=/cargo",
 ]

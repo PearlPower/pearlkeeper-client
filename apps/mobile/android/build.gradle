@@ -24,7 +24,7 @@ apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
 
 // Strip absolute build-host paths from native libraries. Without this,
-// /Users/<dev>/.gradle/... and /Users/<dev>/dev/wallet/node_modules/... get
+// /Users/<dev>/.gradle/... and /Users/<dev>/<project>/node_modules/... get
 // baked into RN codegen .so files (visible via `strings` on the APK / AAB)
 // for every architecture, in every autolinked native module.
 //

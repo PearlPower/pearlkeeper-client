@@ -92,8 +92,8 @@ android {
         applicationId 'com.pearlkeeper.mobile'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 55
-        versionName "1.3.23"
+        versionCode 58
+        versionName "1.3.24"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
 
@@ -112,6 +112,17 @@ android {
             }
         }
     }
+    // Release signing is loaded from apps/mobile/android/keystore.properties
+    // (gitignored) so the pseudonymous release key + passwords never land in the
+    // repo. See keystore.properties.example for the keytool command. When the file
+    // is absent (most local/dev checkouts) release builds fall back to the shared
+    // debug key, so nothing breaks — only CI/release machines carry the real key.
+    def keystorePropsFile = rootProject.file('keystore.properties')
+    def keystoreProps = new Properties()
+    if (keystorePropsFile.exists()) {
+        keystoreProps.load(new FileInputStream(keystorePropsFile))
+    }
+
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -119,15 +130,23 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        if (keystorePropsFile.exists()) {
+            release {
+                storeFile file(keystoreProps['RELEASE_STORE_FILE'])
+                storePassword keystoreProps['RELEASE_STORE_PASSWORD']
+                keyAlias keystoreProps['RELEASE_KEY_ALIAS']
+                keyPassword keystoreProps['RELEASE_KEY_PASSWORD']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
-            // Caution! In production, you need to generate your own keystore file.
-            // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
+            // Sign with the pseudonymous release key when keystore.properties is
+            // present; otherwise fall back to the debug key (local/dev builds).
+            signingConfig keystorePropsFile.exists() ? signingConfigs.release : signingConfigs.debug
             def enableShrinkResources = findProperty('android.enableShrinkResourcesInReleaseBuilds') ?: 'false'
             shrinkResources enableShrinkResources.toBoolean()
             minifyEnabled enableMinifyInReleaseBuilds
