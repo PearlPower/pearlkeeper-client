@@ -1,0 +1,62 @@
+{
+  "name": "@prl-wallet/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./mnemonic": {
+      "types": "./dist/mnemonic.d.ts",
+      "import": "./dist/mnemonic.js"
+    },
+    "./keys": {
+      "types": "./dist/keys.d.ts",
+      "import": "./dist/keys.js"
+    },
+    "./address": {
+      "types": "./dist/address.d.ts",
+      "import": "./dist/address.js"
+    },
+    "./tx": {
+      "types": "./dist/tx.d.ts",
+      "import": "./dist/tx.js"
+    },
+    "./entropy": {
+      "types": "./dist/entropy.d.ts",
+      "import": "./dist/entropy.js"
+    },
+    "./fixtures/cryptoVectors": {
+      "types": "./dist/__fixtures__/cryptoVectors.d.ts",
+      "import": "./dist/__fixtures__/cryptoVectors.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "jest --config jest.config.cjs"
+  },
+  "dependencies": {
+    "@prl-wallet/config": "*",
+    "@bitcoinerlab/secp256k1": "^1.2.0",
+    "@noble/hashes": "^1.6.0",
+    "bip32": "^5.0.0",
+    "ecpair": "^3.0.0",
+    "@scure/bip39": "^1.4.0",
+    "bitcoinjs-lib": "^7.0.0"
+  },
+  "devDependencies": {
+    "@prl-wallet/tsconfig": "*",
+    "@prl-wallet/eslint-config": "*",
+    "typescript": "~5.7.0",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}

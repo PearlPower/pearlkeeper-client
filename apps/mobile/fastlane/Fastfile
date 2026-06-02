@@ -1,0 +1,323 @@
+require "json"
+require "fileutils"
+require "securerandom"
+require "bundler"
+
+APP_DIR = File.expand_path("..", __dir__)
+ARTIFACT_BASE = "PearlKeeper"
+IOS_PROJECT = "prlwallet.xcodeproj"
+IOS_WORKSPACE = "prlwallet.xcworkspace"
+IOS_SCHEME = "prlwallet"
+IOS_INFO_PLIST = "prlwallet/Info.plist"
+ENV_FILE = File.expand_path("~/.pearlkeeper-mobile.env")
+
+# --- helpers -------------------------------------------------------------
+
+def load_env_file
+  return unless File.exist?(ENV_FILE)
+  File.readlines(ENV_FILE).each do |raw|
+    line = raw.strip
+    next if line.empty? || line.start_with?("#")
+    m = line.match(/\A(?:export\s+)?([A-Z_][A-Z0-9_]*)=(.*)\z/i)
+    next unless m
+    key = m[1]
+    value = m[2].strip.gsub(/\A["']|["']\z/, "").gsub("$HOME", ENV["HOME"])
+    ENV[key] ||= value
+  end
+end
+
+def app_version
+  JSON.parse(File.read(File.join(APP_DIR, "app.json")))["expo"]["version"]
+end
+
+def bump_app_version!(type)
+  unless %w[patch minor major].include?(type)
+    UI.user_error!("type must be 'patch', 'minor', or 'major', got '#{type}'")
+  end
+  path = File.join(APP_DIR, "app.json")
+  content = File.read(path)
+  m = content.match(/"version":\s*"(\d+)\.(\d+)\.(\d+)"/)
+  UI.user_error!("Could not find expo.version in #{path}") unless m
+  major, minor, patch = m[1].to_i, m[2].to_i, m[3].to_i
+  case type
+  when "major" then major += 1; minor = 0; patch = 0
+  when "minor" then minor += 1; patch = 0
+  when "patch" then patch += 1
+  end
+  current = "#{m[1]}.#{m[2]}.#{m[3]}"
+  new_version = "#{major}.#{minor}.#{patch}"
+  File.write(path, content.sub(/"version":\s*"\d+\.\d+\.\d+"/, %("version": "#{new_version}")))
+  sync_native_marketing_versions!(new_version)
+  [current, new_version]
+end
+
+def sync_native_marketing_versions!(version)
+  # iOS: agvtool updates pbxproj's MARKETING_VERSION + Info.plist's
+  # CFBundleShortVersionString (the latter is hard-coded by Expo prebuild and
+  # doesn't auto-resolve from pbxproj).
+  Dir.chdir(File.join(APP_DIR, "ios")) do
+    success = system("xcrun", "agvtool", "new-marketing-version", version)
+    UI.user_error!("agvtool new-marketing-version failed") unless success
+  end
+
+  gradle = File.join(APP_DIR, "android", "app", "build.gradle")
+  File.write(gradle, File.read(gradle).sub(/versionName\s+"[^"]+"/, %(versionName "#{version}")))
+end
+
+def current_release_tag
+  Dir.chdir(APP_DIR) do
+    tag = `git describe --exact-match --tags HEAD 2>/dev/null`.strip
+    tag.match?(/\Amobile-v\d+\.\d+\.\d+\z/) ? tag : nil
+  end
+end
+
+def assert_clean_tree!
+  return if ENV["ALLOW_DIRTY"] == "1"
+  status = Dir.chdir(APP_DIR) { `git status --porcelain` }
+  return if status.strip.empty?
+  UI.user_error!("Working tree has uncommitted changes. Set ALLOW_DIRTY=1 to override.")
+end
+
+def setup_output_dir!(version)
+  ts = Time.now.utc.strftime("%Y-%m-%dT%H-%M-%SZ")
+  dir = File.join(APP_DIR, "output", "v#{version}-#{ts}")
+  FileUtils.mkdir_p(dir)
+  ENV["OUTPUT_DIR"] = dir
+  dir
+end
+
+def synth_build_record(platform:, version:, build_number:)
+  record = {
+    id: "local-#{platform}-#{SecureRandom.hex(8)}",
+    appVersion: version,
+    appBuildVersion: build_number,
+  }
+  if platform == :ios
+    record[:iosVersion] = version
+    record[:iosBuildNumber] = build_number
+  else
+    record[:androidVersion] = version
+    record[:androidVersionCode] = build_number
+  end
+  record[:buildProfile] = "release-unsigned"
+  record[:gitCommitHash] = Dir.chdir(APP_DIR) { `git rev-parse HEAD`.strip }
+  path = "/tmp/pearlkeeper-build-#{platform}.json"
+  File.write(path, JSON.pretty_generate(record))
+  path
+end
+
+def write_manifest!(platform:, version:, build_number:, artifact_path:)
+  record_path = synth_build_record(
+    platform: platform,
+    version: version,
+    build_number: build_number,
+  )
+  out = File.join(ENV["OUTPUT_DIR"], "build-manifest.#{platform}.json")
+  tag = ENV["RELEASE_TAG"].to_s.empty? ? "none" : ENV["RELEASE_TAG"]
+  sha = Dir.chdir(APP_DIR) { `git rev-parse HEAD`.strip }
+  sh(
+    "node",
+    File.join(APP_DIR, "ci", "write-build-manifest.ts"),
+    "--platform", platform.to_s,
+    "--build", record_path,
+    "--artifact", artifact_path,
+    "--out", out,
+    "--tag", tag,
+    "--sha", sha,
+  )
+end
+
+def push_build_tag!(platform:, build_number:)
+  return if ENV["RELEASE_TAG"].to_s.empty?
+  return if ENV["SKIP_BUILD_TAG"] == "1"
+  Dir.chdir(APP_DIR) do
+    sh File.join(APP_DIR, "ci", "push-build-number-tag.sh"),
+       platform.to_s,
+       build_number.to_s,
+       ENV["RELEASE_TAG"]
+  end
+end
+
+def read_ios_build_number
+  plist = File.read(File.join(APP_DIR, "ios", IOS_INFO_PLIST))
+  m = plist.match(/<key>CFBundleVersion<\/key>\s*<string>([^<]+)<\/string>/)
+  UI.user_error!("Could not find CFBundleVersion in #{IOS_INFO_PLIST}") unless m
+  m[1].strip
+end
+
+def bump_ios_build_number
+  Dir.chdir(File.join(APP_DIR, "ios")) do
+    success = system("xcrun", "agvtool", "next-version", "-all")
+    UI.user_error!("agvtool next-version failed") unless success
+  end
+  read_ios_build_number
+end
+
+def bump_android_version_code
+  path = File.join(APP_DIR, "android", "app", "build.gradle")
+  content = File.read(path)
+  m = content.match(/versionCode\s+(\d+)/)
+  UI.user_error!("Could not find versionCode in #{path}") unless m
+  next_value = m[1].to_i + 1
+  File.write(path, content.sub(/versionCode\s+\d+/, "versionCode #{next_value}"))
+  next_value
+end
+
+# --- lanes ---------------------------------------------------------------
+
+before_all do |lane|
+  load_env_file
+  ENV["APP_VERSION"] = app_version
+  tag = current_release_tag
+  ENV["RELEASE_TAG"] = tag.to_s
+  if tag
+    expected = "mobile-v#{ENV['APP_VERSION']}"
+    UI.user_error!("HEAD tag #{tag} does not match app.json version (expected #{expected})") unless tag == expected
+    UI.message "Release tag #{tag} matches app.json (#{ENV['APP_VERSION']})"
+  end
+  if lane == :build
+    assert_clean_tree!
+    setup_output_dir!(ENV["APP_VERSION"])
+    UI.message "OUTPUT_DIR=#{ENV['OUTPUT_DIR']}"
+  end
+end
+
+default_platform(:ios)
+
+desc "Bump app.json expo.version (patch/minor/major), commit, and create mobile-v<sem> tag."
+lane :bump do |options|
+  type = (options[:type] || "patch").to_s
+  current, new_version = bump_app_version!(type)
+  Dir.chdir(APP_DIR) do
+    sh "git", "add",
+       "app.json",
+       "ios/#{IOS_PROJECT}/project.pbxproj",
+       "ios/#{IOS_INFO_PLIST}",
+       "android/app/build.gradle"
+    sh "git", "commit", "-m", "mobile v#{new_version}"
+    sh "git", "tag", "-a", "mobile-v#{new_version}", "-m", "v#{new_version}"
+  end
+  UI.success "Bumped #{current} → #{new_version} (#{type})"
+  UI.success "Committed and tagged mobile-v#{new_version}."
+  UI.message "Next: build artifacts via fastlane ios build / android build."
+end
+
+platform :ios do
+  desc "Build an UNSIGNED .xcarchive (Release config). Output: apps/mobile/output/v<ver>-<ts>/PearlKeeper_<ver>.xcarchive.zip"
+  lane :build do
+    ENV["NODE_ENV"] = "production"
+
+    # Strip build-host identity from the archive:
+    # TZ=UTC: xcarchive Info.plist records CreationDate; without this it
+    # leaks the build machine's timezone (e.g. "IST" → Israel).
+    # *-prefix-map: rewrites $HOME paths embedded in dSYMs / DWARF debug
+    # info via __FILE__ / source path attributes. dSYMs ship to Apple and
+    # Sentry-style crash collectors.
+    # -gno-record-command-line: clang defaults to embedding its full
+    # invocation (including absolute -I/-fmodule-map-file paths) into
+    # DWARF's .debug_str section. The prefix-map directives don't touch
+    # that recorded text. This flag suppresses the recording entirely.
+    # -derivedDataPath: dsymutil writes the .app's location into the
+    # dSYM's relocation .yml as `binary-path`. The default DerivedData
+    # location is under $HOME/Library/Developer/Xcode/DerivedData/...;
+    # redirecting to /tmp/pearlkeeper-derived strips $HOME from the yml.
+    ENV["TZ"] = "UTC"
+    home_remap = "#{ENV['HOME']}=/build"
+    derived_data_path = "/tmp/pearlkeeper-derived"
+    sh "rm", "-rf", derived_data_path
+
+    # CocoaPods is installed under Homebrew Ruby; running it under fastlane's
+    # bundler env makes it pick up apps/mobile/Gemfile.
+    Bundler.with_unbundled_env do
+      sh "cd #{APP_DIR}/ios && pod install"
+    end
+
+    new_build_number = bump_ios_build_number
+
+    artifact_name = "#{ARTIFACT_BASE}_#{ENV['APP_VERSION']}"
+    archive_path = File.join(ENV["OUTPUT_DIR"], "#{artifact_name}.xcarchive")
+    workspace_path = File.join(APP_DIR, "ios", IOS_WORKSPACE)
+
+    sh(
+      "xcodebuild",
+      "-workspace", workspace_path,
+      "-scheme", IOS_SCHEME,
+      "-configuration", "Release",
+      "-destination", "generic/platform=iOS",
+      "-archivePath", archive_path,
+      "-derivedDataPath", derived_data_path,
+      "archive",
+      "CODE_SIGNING_ALLOWED=NO",
+      "CODE_SIGNING_REQUIRED=NO",
+      "CODE_SIGN_IDENTITY=",
+      "CODE_SIGN_ENTITLEMENTS=",
+      "DEVELOPMENT_TEAM=",
+      "OTHER_CFLAGS=$(inherited) -fdebug-prefix-map=#{home_remap} -gno-record-command-line",
+      "OTHER_CPLUSPLUSFLAGS=$(inherited) -fdebug-prefix-map=#{home_remap} -gno-record-command-line",
+      "OTHER_SWIFT_FLAGS=$(inherited) -debug-prefix-map #{home_remap}",
+    )
+
+    zip_path = "#{archive_path}.zip"
+    Dir.chdir(ENV["OUTPUT_DIR"]) do
+      sh "zip", "-rq", File.basename(zip_path), File.basename(archive_path)
+      sh "rm", "-rf", File.basename(archive_path)
+    end
+
+    write_manifest!(
+      platform: :ios,
+      version: ENV["APP_VERSION"],
+      build_number: new_build_number,
+      artifact_path: zip_path,
+    )
+    push_build_tag!(platform: :ios, build_number: new_build_number)
+
+    UI.success "Built #{zip_path} (CFBundleVersion #{new_build_number}, UNSIGNED)."
+    UI.important "Artifact is unsigned. Sign with `xcodebuild -exportArchive` + a provisioning profile before App Store / TestFlight upload."
+  end
+end
+
+platform :android do
+  desc "Build a release .aab + .apk (debug-signed; UNSIGNED for store purposes). Output: apps/mobile/output/v<ver>-<ts>/PearlKeeper_<ver>.{aab,apk}"
+  lane :build do
+    ENV["NODE_ENV"] = "production"
+
+    new_version_code = bump_android_version_code
+    artifact_name = "#{ARTIFACT_BASE}_#{ENV['APP_VERSION']}"
+
+    # .aab — the canonical Play Store / distribution artifact.
+    gradle(
+      task: "bundle",
+      build_type: "Release",
+      project_dir: File.join(APP_DIR, "android"),
+    )
+
+    # .apk — sideload-friendly artifact for direct install / device testing.
+    # Second call reuses gradle's compile cache, so it's much faster than the first.
+    gradle(
+      task: "assemble",
+      build_type: "Release",
+      project_dir: File.join(APP_DIR, "android"),
+    )
+
+    aab_src = File.join(APP_DIR, "android", "app", "build", "outputs", "bundle", "release", "app-release.aab")
+    aab_out = File.join(ENV["OUTPUT_DIR"], "#{artifact_name}.aab")
+    sh "cp", aab_src, aab_out
+
+    apk_src = File.join(APP_DIR, "android", "app", "build", "outputs", "apk", "release", "app-release.apk")
+    apk_out = File.join(ENV["OUTPUT_DIR"], "#{artifact_name}.apk")
+    sh "cp", apk_src, apk_out
+
+    # Manifest references the .aab (canonical artifact); the .apk is an extra
+    # output for sideloading.
+    write_manifest!(
+      platform: :android,
+      version: ENV["APP_VERSION"],
+      build_number: new_version_code,
+      artifact_path: aab_out,
+    )
+    push_build_tag!(platform: :android, build_number: new_version_code)
+
+    UI.success "Built #{aab_out} + #{apk_out} (versionCode #{new_version_code})."
+    UI.important "Artifacts are signed with the Android DEBUG keystore. Not acceptable for Play Store upload until a release keystore is wired into android/app/build.gradle."
+  end
+end

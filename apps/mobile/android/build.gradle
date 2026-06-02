@@ -1,0 +1,61 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+
+buildscript {
+  repositories {
+    google()
+    mavenCentral()
+  }
+  dependencies {
+    classpath('com.android.tools.build:gradle')
+    classpath('com.facebook.react:react-native-gradle-plugin')
+    classpath('org.jetbrains.kotlin:kotlin-gradle-plugin')
+  }
+}
+
+allprojects {
+  repositories {
+    google()
+    mavenCentral()
+    maven { url 'https://www.jitpack.io' }
+  }
+}
+
+apply plugin: "expo-root-project"
+apply plugin: "com.facebook.react.rootproject"
+
+// Strip absolute build-host paths from native libraries. Without this,
+// /Users/<dev>/.gradle/... and /Users/<dev>/dev/wallet/node_modules/... get
+// baked into RN codegen .so files (visible via `strings` on the APK / AAB)
+// for every architecture, in every autolinked native module.
+//
+// -ffile-prefix-map rewrites the embedded paths at compile time. Applied at
+// the root via plugins.withId so it propagates into every :app and every
+// RN-autolinked library subproject that uses AGP's externalNativeBuild.cmake
+// pipeline.
+//
+// Why not `subprojects { afterEvaluate { ... } }`:
+// expo + RN root plugins eagerly evaluate some subprojects during root
+// configuration, so a later afterEvaluate registration throws "Cannot run
+// afterEvaluate when the project is already evaluated".
+// Why not a top-level `def applyPathRemap = { android { ... } }`:
+// the closure's owner is the build script, so `android` resolves against
+// the root project (which has no android extension) and fails.
+// The inline `proj.android { ... }` form below routes the call to the
+// reacting subproject, which is the only place an android extension exists.
+def remapFlag = "-ffile-prefix-map=${System.getProperty('user.home')}=/build"
+subprojects { proj ->
+  ["com.android.library", "com.android.application"].each { pluginId ->
+    proj.plugins.withId(pluginId) {
+      proj.android {
+        defaultConfig {
+          externalNativeBuild {
+            cmake {
+              cppFlags remapFlag
+              cFlags remapFlag
+            }
+          }
+        }
+      }
+    }
+  }
+}

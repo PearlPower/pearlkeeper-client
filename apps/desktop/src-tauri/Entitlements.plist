@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- WKWebView JIT compilation — required for Tauri WebView to run JS -->
+  <key>com.apple.security.cs.allow-jit</key>
+  <true/>
+  <!-- WKWebView unsigned executable memory — required for WebView -->
+  <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+  <true/>
+  <!-- dyld environment variables — some Tauri builds need this -->
+  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
+  <true/>
+  <!-- Network client — required for Blockbook HTTP when online -->
+  <key>com.apple.security.network.client</key>
+  <true/>
+  <!--
+    Keychain access: the `keyring` Rust crate reads/writes the default
+    login keychain. NO special entitlement is needed for an app to access
+    its OWN keychain items by bundle ID — the OS grants access automatically
+    to a signed app. The `com.apple.security.keychain-access-groups` entitlement
+    is ONLY needed if sharing keychain items across multiple bundle IDs (future
+    cross-device feature, deferred). For v1.3 this is NOT required.
+  -->
+</dict>
+</plist>

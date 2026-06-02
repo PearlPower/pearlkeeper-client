@@ -1,0 +1,18 @@
+# Strip absolute build-host paths from release binaries.
+#
+# Without these remaps, paths like /Users/<dev>/.cargo/registry/src/.../foo.rs
+# get embedded by Rust's file!() / panic!() / tracing macros and end up in the
+# .rodata section of the shipped binary — visible to anyone running `strings`
+# on the .dmg, .exe, or AppImage. `strip` does not help (the paths are in
+# .rodata, not the symbol table); --remap-path-prefix is the actual fix.
+#
+# rustflags don't expand env vars, so paths are listed explicitly. Order matters:
+# the longest prefix must come first so cargo registry paths are caught before
+# the broader $HOME remap fires.
+
+[build]
+rustflags = [
+  "--remap-path-prefix=/home/runner/.cargo=/cargo",
+  "--remap-path-prefix=/home/runner/work=/build",
+  "--remap-path-prefix=/root/.cargo=/cargo",
+]

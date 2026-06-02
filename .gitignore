@@ -1,0 +1,66 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# tsc-emitted config artifacts (composite project references run vite.config.ts
+# through tsc -b without an outDir, so the .js / .d.ts emit lands next to the
+# source). The runtime config is the .ts file; the emitted siblings are stale
+# byproducts and must never be committed.
+apps/*/vite.config.js
+apps/*/vite.config.d.ts
+
+# Expo / React Native
+.expo/
+expo-env.d.ts
+ios/Pods/
+android/.gradle/
+android/app/build/
+android/build/
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+*.orig.*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Turbo
+.turbo/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Testing
+coverage/
+
+# Local-only directories
+
+# Local release pipeline
+target-linux/
+
+# Secrets — private signing key for config signing (never commit)
+config-signing-key.pem

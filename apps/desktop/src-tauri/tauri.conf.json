@@ -1,0 +1,59 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Pearl Keeper",
+  "version": "1.3.20",
+  "identifier": "com.pearlkeeper.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "beforeBuildCommand": "npm run build",
+    "devUrl": "http://localhost:1420",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Pearl Keeper",
+        "width": 1024,
+        "height": 768,
+        "minWidth": 640,
+        "minHeight": 480,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost https://www.pearlkeeper.com/api/ http://localhost:8787 http://127.0.0.1:8787; img-src 'self' data:; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "entitlements": "./Entitlements.plist",
+      "signingIdentity": null
+    },
+    "windows": {
+      "signCommand": "trusted-signing-cli -e https://REPLACE_WITH_AZURE_ENDPOINT.codesigning.azure.net -a REPLACE_WITH_ACCOUNT_NAME -c REPLACE_WITH_PROFILE_NAME -d \"Pearl Keeper\" \"%1\""
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": false
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://www.pearlkeeper.com/api/v1/updates/{{target}}/{{arch}}/manifest.json"
+      ],
+      "pubkey": "untrusted comment: minisign public key: B359334C24308D21\nRWQhjTAkTDNZs6mjDxgV8mlAMams43JPSLEeJ8eJsVGfoWkEAJUtQJy6\n"
+    }
+  }
+}

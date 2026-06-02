@@ -1,0 +1,36 @@
+{
+  "name": "@prl-wallet/services",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "jest --config jest.config.cjs"
+  },
+  "dependencies": {
+    "@prl-wallet/analytics": "*",
+    "@prl-wallet/api-schemas": "*",
+    "@prl-wallet/config": "*",
+    "@prl-wallet/core": "*",
+    "zod": "^4.0.17"
+  },
+  "devDependencies": {
+    "@prl-wallet/eslint-config": "*",
+    "@prl-wallet/tsconfig": "*",
+    "eslint": "^8.0.0",
+    "typescript": "~5.7.0",
+    "jest": "^29.0.0",
+    "@types/jest": "^29.0.0",
+    "ts-jest": "^29.0.0"
+  }
+}

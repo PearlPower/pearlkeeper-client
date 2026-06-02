@@ -1,0 +1,6 @@
+{
+  "extends": "@prl-wallet/tsconfig/react-native.json",
+  "compilerOptions": {
+    "baseUrl": "."
+  }
+}

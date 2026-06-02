@@ -1,0 +1,10 @@
+{
+  "name": "argon2-native",
+  "version": "0.1.0",
+  "description": "Native Argon2id (off-thread) for PRL Wallet PIN hashing",
+  "main": "index.ts",
+  "private": true,
+  "license": "MIT",
+  "author": "PRL Wallet",
+  "homepage": "https://www.pearlkeeper.com"
+}

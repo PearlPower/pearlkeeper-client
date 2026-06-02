@@ -1,0 +1,5 @@
+app_identifier "com.pearlkeeper.mobile"
+
+for_platform(:android) do
+  package_name "com.pearlkeeper.mobile"
+end

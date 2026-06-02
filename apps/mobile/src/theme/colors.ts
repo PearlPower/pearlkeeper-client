@@ -1,0 +1,22 @@
+export const colors = {
+  cream: "#F5F1EB",
+  white: "#FFFFFF",
+  black: "#000000",
+  gray50: "#F9FAFB",
+  gray300: "#D1D5DB",
+  gray500: "#6B7280",
+  gray600: "#4B5563",
+  gray700: "#374151",
+  gray800: "#1F2937",
+  blue600: "#2563EB",
+
+  success: "#16a34a",
+  error: "#dc2626",
+  warning: "#d97706",
+  successBg: "#f0fdf4",
+  errorBg: "#fef2f2",
+  warningBg: "#fffbeb",
+  successBorder: "#86efac",
+  errorBorder: "#fca5a5",
+  warningBorder: "#fde68a",
+};

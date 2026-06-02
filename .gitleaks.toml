@@ -1,0 +1,44 @@
+# .gitleaks.toml — gitleaks configuration for pearlkeeper-client
+# Suppresses false positives that have been manually reviewed and confirmed safe.
+# See: https://github.com/gitleaks/gitleaks#configuration
+#
+# To add a new allowlist entry, document why the finding is a false positive.
+
+title = "prl-wallet gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Known false positives confirmed safe in prl-wallet"
+
+# Path-based suppression: Podfile.lock contains CocoaPods SHA1 checksums
+# (package hashes verified by CocoaPods, not secrets)
+paths = [
+  '''(Podfile\.lock)''',
+]
+
+# Stopwords: gitleaks suppresses findings whose Secret field contains any of these.
+# Each entry has been manually reviewed.
+stopwords = [
+  # ---- test fixture identifiers ----------------------------------------
+  # apps/desktop/src/platform/__tests__/secrets.adapter.test.ts
+  # "wallet_w1_mnemonic" is a keychain key NAME used in tests (not a mnemonic)
+  "wallet_w1_mnemonic",
+  "wallet_w2_mnemonic",
+
+  # ---- BIP86 derivation test vectors -----------------------------------
+  # packages/core/src/__fixtures__/cryptoVectors.ts
+  # These are EXPECTED public key outputs from the BIP86 test suite.
+  # They are cryptographic test vectors, not secret keys.
+  "cc8a4bc64d897bddc5fbc2f670f7a8ba0b386779",
+  "a60869f0dbcf1dc659c9cecbaf8050135ea9e8cd",
+
+  # ---- ed25519 public key fingerprints ---------------------------------
+  # packages/api-client/src/signedConfig.keys.ts
+  # KEY_1_FINGERPRINT and KEY_2_FINGERPRINT are SHA-256 hashes of
+  # PUBLIC key bytes — not secrets. The corresponding private keys
+  # never appear in the client codebase.
+  "bd8edc6c34a91b617179fa96ebe3ee1a66395dc9",
+  "e49a921eaa159147cf260c756992d26e07dd349c",
+]

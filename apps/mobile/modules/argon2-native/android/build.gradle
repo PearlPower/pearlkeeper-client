@@ -1,0 +1,21 @@
+plugins {
+  id 'com.android.library'
+  id 'expo-module-gradle-plugin'
+}
+
+group = 'expo.modules.argon2native'
+version = '0.1.0'
+
+android {
+  namespace "expo.modules.argon2native"
+  defaultConfig {
+    versionCode 1
+    versionName "0.1.0"
+  }
+}
+
+dependencies {
+  // Pure-JVM Argon2id (RFC 9106). JIT-compiled, so m=19 MiB completes in
+  // tens of ms instead of the multi-second freeze of pure-JS @noble on Hermes.
+  implementation "org.bouncycastle:bcprov-jdk18on:1.78.1"
+}

@@ -1,0 +1,17 @@
+# CODEOWNERS — auto-assign reviewers.
+# Reference:
+#   https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo.
+*                              @PearlPower
+
+# Workflow files require explicit review (supply-chain hardening).
+/.github/workflows/*           @PearlPower
+
+# Crypto-touching code requires extra review.
+/apps/desktop/src-tauri/       @PearlPower
+/packages/services/            @PearlPower
+/packages/blockbook/           @PearlPower
+/packages/api-client/          @PearlPower
+/packages/api-schemas/         @PearlPower
+/packages/eslint-plugin-analytics/  @PearlPower

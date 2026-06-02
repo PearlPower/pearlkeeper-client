@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "Pearl Keeper",
+    "slug": "pearl-keeper",
+    "version": "1.3.20",
+    "plugins": [
+      "expo-secure-store",
+      ["expo-notifications", { "enableBackgroundRemoteNotifications": true }]
+    ],
+    "ios": {
+      "bundleIdentifier": "com.pearlkeeper.mobile",
+      "entitlements": {
+        "com.apple.developer.devicecheck.appattest-environment": "development"
+      }
+    },
+    "android": {
+      "package": "com.pearlkeeper.mobile"
+    }
+  }
+}

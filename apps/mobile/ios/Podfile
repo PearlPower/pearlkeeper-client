@@ -1,0 +1,102 @@
+require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
+require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
+
+require 'json'
+podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
+
+def ccache_enabled?(podfile_properties)
+  # Environment variable takes precedence
+  return ENV['USE_CCACHE'] == '1' if ENV['USE_CCACHE']
+
+  # Fall back to Podfile properties
+  podfile_properties['apple.ccacheEnabled'] == 'true'
+end
+
+ENV['RCT_NEW_ARCH_ENABLED'] ||= '0' if podfile_properties['newArchEnabled'] == 'false'
+ENV['EX_DEV_CLIENT_NETWORK_INSPECTOR'] ||= podfile_properties['EX_DEV_CLIENT_NETWORK_INSPECTOR']
+ENV['RCT_USE_RN_DEP'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+ENV['RCT_USE_PREBUILT_RNCORE'] ||= '1' if podfile_properties['ios.buildReactNativeFromSource'] != 'true' && podfile_properties['newArchEnabled'] != 'false'
+platform :ios, podfile_properties['ios.deploymentTarget'] || '15.1'
+
+prepare_react_native_project!
+
+target 'prlwallet' do
+  use_expo_modules!
+
+  if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
+    config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run"];
+  else
+    config_command = [
+      'node',
+      '--no-warnings',
+      '--eval',
+      'require(\'expo/bin/autolinking\')',
+      'expo-modules-autolinking',
+      'react-native-config',
+      '--json',
+      '--platform',
+      'ios'
+    ]
+  end
+
+  config = use_native_modules!(config_command)
+
+  use_frameworks! :linkage => podfile_properties['ios.useFrameworks'].to_sym if podfile_properties['ios.useFrameworks']
+  use_frameworks! :linkage => ENV['USE_FRAMEWORKS'].to_sym if ENV['USE_FRAMEWORKS']
+
+  use_react_native!(
+    :path => config[:reactNativePath],
+    :hermes_enabled => podfile_properties['expo.jsEngine'] == nil || podfile_properties['expo.jsEngine'] == 'hermes',
+    # An absolute path to your application root.
+    :app_path => "#{Pod::Config.instance.installation_root}/..",
+    :privacy_file_aggregation_enabled => podfile_properties['apple.privacyManifestAggregationEnabled'] != 'false',
+  )
+
+  post_install do |installer|
+    react_native_post_install(
+      installer,
+      config[:reactNativePath],
+      :mac_catalyst_enabled => false,
+      :ccache_enabled => ccache_enabled?(podfile_properties),
+    )
+
+    # Strip $HOME paths from Pod-built object code + DWARF debug info.
+    # CocoaPods generates Pods-prlwallet.<config>.xcconfig that overrides the
+    # OTHER_CFLAGS / OTHER_SWIFT_FLAGS we set on the app project via Fastfile,
+    # so the prefix-map directives have to be re-injected here for every Pod
+    # target. Without this, the shipped dSYMs (which we upload to Apple +
+    # symbolication services) leak the full /Users/<dev>/... path layout.
+    #
+    # Must normalize to Array because xcodeproj stores OTHER_CFLAGS as Array
+    # for some pods and String for others — string interpolation on the Array
+    # form yields `["$(inherited)", ...]` (with literal brackets) which clang
+    # then tries to open as a filename, producing the cryptic
+    # `no such file or directory: '[,'` build failure (ZXingObjC, etc.).
+    home_remap = "#{ENV['HOME']}=/build"
+    c_remap_tokens = [
+      "-fdebug-prefix-map=#{home_remap}",
+      "-ffile-prefix-map=#{home_remap}",
+      # Clang defaults to -grecord-command-line, which embeds the full clang
+      # invocation (including absolute -I / -fmodule-map-file paths) into
+      # DWARF .debug_str. -f{debug,file}-prefix-map doesn't touch that.
+      # Disabling the recording is the only way to keep those paths out.
+      "-gno-record-command-line",
+    ]
+    swift_remap_tokens = ["-debug-prefix-map", home_remap]
+
+    coerce_to_array = ->(v) {
+      return ['$(inherited)'] if v.nil?
+      return v if v.is_a?(Array)
+      v.to_s.split(/\s+/).reject(&:empty?)
+    }
+
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        ['OTHER_CFLAGS', 'OTHER_CPLUSPLUSFLAGS'].each do |key|
+          config.build_settings[key] = coerce_to_array.call(config.build_settings[key]) + c_remap_tokens
+        end
+        config.build_settings['OTHER_SWIFT_FLAGS'] = coerce_to_array.call(config.build_settings['OTHER_SWIFT_FLAGS']) + swift_remap_tokens
+      end
+    end
+  end
+end

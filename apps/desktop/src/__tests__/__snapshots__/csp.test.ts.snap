@@ -1,0 +1,3 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[` + : tauri.conf.json CSP directives > CSP full string snapshot 1`] = `"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost https://www.pearlkeeper.com/api/ http://localhost:8787 http://127.0.0.1:8787; img-src 'self' data:; worker-src 'none'; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'none'"`;

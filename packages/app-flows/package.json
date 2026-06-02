@@ -1,0 +1,54 @@
+{
+  "name": "@prl-wallet/app-flows",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "jest --config jest.config.cjs"
+  },
+  "dependencies": {
+    "@prl-wallet/analytics": "*",
+    "@prl-wallet/api-client": "*",
+    "@prl-wallet/app-adapters": "*",
+    "@prl-wallet/app-state": "*",
+    "@prl-wallet/config": "*",
+    "@prl-wallet/core": "*",
+    "@prl-wallet/services": "*",
+    "@scure/bip39": "^1.4.0",
+    "bitcoinjs-lib": "^7.0.0",
+    "semver-compare": "^1.0.0",
+    "zustand": "^5.0.11"
+  },
+  "peerDependencies": {
+    "@tanstack/react-query": "^5.0.0",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@prl-wallet/eslint-config": "*",
+    "@prl-wallet/tsconfig": "*",
+    "@tanstack/react-query": "^5.0.0",
+    "@testing-library/react": "^16.0.0",
+    "@types/jest": "^29.0.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/semver-compare": "^1.0.3",
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0",
+    "jest-environment-jsdom": "^29.0.0",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "ts-jest": "^29.0.0",
+    "typescript": "~5.7.0"
+  }
+}

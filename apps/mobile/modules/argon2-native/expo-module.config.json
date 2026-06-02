@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["Argon2NativeModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.argon2native.Argon2NativeModule"]
+  }
+}
