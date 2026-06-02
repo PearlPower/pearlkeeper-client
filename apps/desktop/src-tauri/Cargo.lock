@@ -2930,7 +2930,7 @@ dependencies = [
 
 [[package]]
 name = "prl-wallet-desktop"
-version = "1.3.24"
+version = "1.3.25"
 dependencies = [
  "base64 0.22.1",
  "ed25519-dalek",
