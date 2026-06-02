@@ -1,6 +1,6 @@
 [package]
 name = "prl-wallet-desktop"
-version = "1.3.20"
+version = "1.3.22"
 description = "Pearl Keeper desktop app"
 authors = ["PRL Foundation"]
 edition = "2021"
